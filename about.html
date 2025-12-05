@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vera - Wardrobe Tracker</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+
+    <!-- Configuration -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Lato', 'sans-serif'],
+                        serif: ['Playfair Display', 'serif'],
+                    },
+                    colors: {
+                        stone: {
+                            50: '#fafaf9', 100: '#f5f5f4', 200: '#e7e5e4', 300: '#d6d3d1',
+                            400: '#a8a29e', 500: '#78716c', 600: '#57534e', 700: '#44403c',
+                            800: '#292524', 900: '#1c1917', 950: '#0c0a09',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom scrollbar for detail view */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #d6d3d1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #a8a29e; }
+        
+        .fade-in { animation: fadeIn 0.5s ease-out forwards; }
+        .slide-up { animation: slideUp 0.5s ease-out forwards; }
+        .zoom-in { animation: zoomIn 0.3s ease-out forwards; }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes zoomIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+    </style>
+</head>
+<body class="bg-stone-50 text-stone-900 font-sans selection:bg-stone-200">
+
+    <!-- App Navigation -->
+    <nav id="app-nav" class="fixed top-0 w-full bg-stone-50/90 backdrop-blur-md z-40 border-b border-stone-200">
+        <div class="max-w-screen-2xl mx-auto px-6 h-20 flex justify-between items-center">
+            <div class="flex items-center gap-6">
+                <a href="index.html" class="text-xl font-bold tracking-widest uppercase font-serif hover:text-stone-600 transition-colors">Vera</a>
+                <div class="hidden md:flex gap-6 text-xs font-medium tracking-widest text-stone-500" id="stats-container">
+                    <!-- Stats injected by JS -->
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-4">
+                <a href="index.html" class="text-stone-400 hover:text-stone-900 transition-colors p-2" title="Home">
+                    <i data-lucide="home" class="w-5 h-5"></i>
+                </a>
+                
+                <div class="relative hidden sm:block group">
+                    <i data-lucide="search" class="absolute left-0 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400 group-focus-within:text-stone-900 transition-colors"></i>
+                    <input 
+                        type="text"
+                        id="search-input"
+                        placeholder="SEARCH COLLECTION"
+                        class="pl-6 bg-transparent border-none focus:ring-0 text-xs tracking-wider placeholder-stone-400 text-stone-900 w-32 focus:w-48 transition-all duration-300 outline-none"
+                    />
+                </div>
+                <button onclick="openAddModal()" class="bg-stone-900 text-white hover:bg-stone-800 hover:shadow-lg px-6 py-3 transition-all duration-300 text-sm tracking-widest uppercase font-medium flex items-center gap-2">
+                    <i data-lucide="plus" class="w-4 h-4"></i> <span class="hidden sm:inline">Add Piece</span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main id="app-main" class="pt-32 pb-20 px-6 max-w-screen-2xl mx-auto">
+        
+        <!-- Categories -->
+        <div class="flex flex-wrap justify-center gap-8 mb-16" id="categories-container">
+            <!-- Categories injected by JS -->
+        </div>
+
+        <!-- Grid -->
+        <div id="grid-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-8 gap-y-16">
+            <!-- Items injected by JS -->
+        </div>
+
+        <!-- Empty State (Hidden by default) -->
+        <div id="empty-state" class="hidden w-full py-20 text-center">
+            <p class="text-stone-400 font-serif italic text-lg">Your collection is empty.</p>
+        </div>
+    </main>
+
+    <!-- Add/Edit Item Modal -->
+    <div id="add-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-stone-900/40 backdrop-blur-sm" onclick="toggleModal('add-modal')"></div>
+        <div class="bg-white w-full max-w-md relative z-10 shadow-2xl zoom-in rounded-sm">
+            <div class="p-8">
+                <div class="flex justify-between items-center mb-8">
+                    <h2 id="modal-title" class="text-lg font-serif italic">New Acquisition</h2>
+                    <button onclick="toggleModal('add-modal')" class="text-stone-400 hover:text-stone-900">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+
+                <form id="add-item-form" class="space-y-6">
+                    <div class="grid grid-cols-2 gap-6">
+                        <div class="col-span-2 flex flex-col gap-1.5">
+                            <label class="text-xs uppercase tracking-wider font-semibold text-stone-500">Name of Piece</label>
+                            <input type="text" name="name" required placeholder="e.g. Cashmere Sweater" class="w-full border-b border-stone-300 bg-transparent py-2 text-stone-900 placeholder-stone-300 focus:border-stone-900 focus:outline-none transition-colors">
+                        </div>
+                        <div class="col-span-2 flex flex-col gap-1.5">
+                            <label class="text-xs uppercase tracking-wider font-semibold text-stone-500">Designer / Brand</label>
+                            <input type="text" name="brand" required placeholder="e.g. Prada" class="w-full border-b border-stone-300 bg-transparent py-2 text-stone-900 placeholder-stone-300 focus:border-stone-900 focus:outline-none transition-colors">
+                        </div>
+                        <div class="flex flex-col gap-1.5">
+                            <label class="text-xs uppercase tracking-wider font-semibold text-stone-500">Category</label>
+                            <select name="category" id="category-select" class="w-full border-b border-stone-300 bg-transparent py-2 text-stone-900 focus:border-stone-900 focus:outline-none transition-colors">
+                                <!-- Options filled by JS -->
+                            </select>
+                        </div>
+                        <div class="flex flex-col gap-1.5">
+                            <label class="text-xs uppercase tracking-wider font-semibold text-stone-500">Size</label>
+                            <input type="text" name="size" required placeholder="e.g. M / 38" class="w-full border-b border-stone-300 bg-transparent py-2 text-stone-900 placeholder-stone-300 focus:border-stone-900 focus:outline-none transition-colors">
+                        </div>
+                        <div class="flex flex-col gap-1.5">
+                            <label class="text-xs uppercase tracking-wider font-semibold text-stone-500">Color</label>
+                            <input type="text" name="color" required placeholder="e.g. Navy" class="w-full border-b border-stone-300 bg-transparent py-2 text-stone-900 placeholder-stone-300 focus:border-stone-900 focus:outline-none transition-colors">
+                        </div>
+                        <div class="flex flex-col gap-1.5">
+                            <label class="text-xs uppercase tracking-wider font-semibold text-stone-500">Price</label>
+                            <input type="number" name="price" required placeholder="0.00" class="w-full border-b border-stone-300 bg-transparent py-2 text-stone-900 placeholder-stone-300 focus:border-stone-900 focus:outline-none transition-colors">
+                        </div>
+                        <div class="col-span-2 flex flex-col gap-1.5">
+                            <label class="text-xs uppercase tracking-wider font-semibold text-stone-500">Image URL</label>
+                            <input type="url" name="image" placeholder="https://..." class="w-full border-b border-stone-300 bg-transparent py-2 text-stone-900 placeholder-stone-300 focus:border-stone-900 focus:outline-none transition-colors">
+                            <p class="text-[10px] text-stone-400 mt-2">* Paste a direct image link for best results</p>
+                        </div>
+                    </div>
+
+                    <div class="pt-4">
+                        <button type="submit" id="modal-submit-btn" class="w-full bg-stone-900 text-white hover:bg-stone-800 hover:shadow-lg px-6 py-3 transition-all duration-300 text-sm tracking-widest uppercase font-medium">Add to Wardrobe</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detail Modal -->
+    <div id="detail-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-stone-900/60 backdrop-blur-sm" onclick="toggleModal('detail-modal')"></div>
+        <div class="bg-white w-full max-w-4xl h-[80vh] md:h-auto relative z-10 shadow-2xl overflow-hidden flex flex-col md:flex-row slide-up rounded-sm">
+            
+            <button onclick="toggleModal('detail-modal')" class="absolute top-4 right-4 z-20 bg-white/50 hover:bg-white p-2 backdrop-blur-sm rounded-full transition-colors">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+
+            <!-- Left: Image -->
+            <div class="w-full md:w-1/2 bg-stone-100 h-1/2 md:h-auto relative" id="detail-image-container">
+               <!-- Image injected here -->
+            </div>
+
+            <!-- Right: Details -->
+            <div class="w-full md:w-1/2 p-8 md:p-12 flex flex-col justify-between bg-white h-1/2 md:h-auto overflow-y-auto">
+                <div id="detail-content">
+                    <!-- Content injected here -->
+                </div>
+
+                <div class="pt-8 mt-8 border-t border-stone-100 flex items-center justify-between">
+                    <button id="detail-edit-btn" class="text-xs uppercase tracking-widest text-stone-500 hover:text-stone-900 transition-colors flex items-center gap-2">
+                        <i data-lucide="pencil" class="w-4 h-4"></i> Edit Item
+                    </button>
+                    <button id="detail-delete-btn" class="text-xs uppercase tracking-widest text-red-900/60 hover:text-red-700 transition-colors flex items-center gap-2">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i> Remove Item
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Logic -->
+    <script>
+        // --- State ---
+        const categories = ['All', 'Coats', 'Tops', 'Bottoms', 'Dresses', 'Shoes', 'Bags', 'Accessories'];
+        let activeCategory = 'All';
+        let items = [];
+        let searchTerm = '';
+        let editingId = null;
+        let currentDetailId = null;
+
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+            loadItems();
+            renderCategories();
+            renderCategorySelect();
+            renderGrid();
+            updateStats();
+            lucide.createIcons();
+
+            // Event Listeners
+            document.getElementById('search-input').addEventListener('input', (e) => {
+                searchTerm = e.target.value;
+                renderGrid();
+            });
+
+            document.getElementById('add-item-form').addEventListener('submit', handleFormSubmit);
+            document.getElementById('detail-delete-btn').addEventListener('click', handleDeleteFromModal);
+            document.getElementById('detail-edit-btn').addEventListener('click', handleEditFromModal);
+        });
+
+        // --- Data Management (Local Storage) ---
+        function loadItems() {
+            const saved = localStorage.getItem('vera_wardrobe_db');
+            if (saved) {
+                try {
+                    items = JSON.parse(saved);
+                } catch (e) {
+                    console.error("Failed to parse items", e);
+                    items = [];
+                }
+            } else {
+                items = [];
+            }
+        }
+
+        function saveItems() {
+            localStorage.setItem('vera_wardrobe_db', JSON.stringify(items));
+            updateStats();
+            renderGrid();
+        }
+
+        // --- Actions ---
+
+        function setCategory(cat) {
+            activeCategory = cat;
+            renderCategories();
+            renderGrid();
+        }
+
+        function toggleModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal.classList.contains('hidden')) {
+                modal.classList.remove('hidden');
+                document.body.style.overflow = 'hidden'; 
+            } else {
+                modal.classList.add('hidden');
+                document.body.style.overflow = '';
+            }
+        }
+
+        function openAddModal() {
+            editingId = null;
+            document.getElementById('add-item-form').reset();
+            document.getElementById('modal-title').textContent = "New Acquisition";
+            document.getElementById('modal-submit-btn').textContent = "Add to Wardrobe";
+            toggleModal('add-modal');
+        }
+
+        function openEditModal(e, id) {
+            if (e) e.stopPropagation();
+            const item = items.find(i => i.id === id);
+            if (!item) return;
+
+            editingId = id;
+            const form = document.getElementById('add-item-form');
+            form.querySelector('[name="name"]').value = item.name;
+            form.querySelector('[name="brand"]').value = item.brand;
+            form.querySelector('[name="category"]').value = item.category;
+            form.querySelector('[name="size"]').value = item.size;
+            form.querySelector('[name="color"]').value = item.color;
+            form.querySelector('[name="price"]').value = item.price;
+            form.querySelector('[name="image"]').value = item.image || '';
+
+            document.getElementById('modal-title').textContent = "Edit Piece";
+            document.getElementById('modal-submit-btn').textContent = "Save Changes";
+            
+            toggleModal('add-modal');
+        }
+
+        function deleteItem(e, id) {
+            e.stopPropagation(); 
+            if (confirm("Remove this item from your collection?")) {
+                items = items.filter(i => i.id !== id);
+                saveItems();
+            }
+        }
+
+        function handleFormSubmit(e) {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const formValues = {
+                name: formData.get('name'),
+                brand: formData.get('brand'),
+                category: formData.get('category'),
+                size: formData.get('size'),
+                color: formData.get('color'),
+                price: parseFloat(formData.get('price')) || 0,
+                image: formData.get('image') || ''
+            };
+
+            if (editingId) {
+                // Update
+                items = items.map(item => item.id === editingId ? { ...item, ...formValues } : item);
+                if (currentDetailId === editingId && !document.getElementById('detail-modal').classList.contains('hidden')) {
+                    openDetail(editingId); // Refresh detail view logic
+                }
+            } else {
+                // Create
+                const newItem = {
+                    id: Date.now(),
+                    ...formValues,
+                    createdAt: new Date().toISOString()
+                };
+                items.unshift(newItem);
+            }
+            
+            saveItems();
+            toggleModal('add-modal');
+            e.target.reset();
+            editingId = null;
+        }
+
+        // --- Rendering ---
+        
+        function updateStats() {
+            const totalValue = items.reduce((sum, item) => sum + (parseFloat(item.price) || 0), 0);
+            const container = document.getElementById('stats-container');
+            container.innerHTML = `
+                <span>${items.length} ITEMS</span>
+                <span>$${totalValue.toLocaleString()} VALUE</span>
+            `;
+        }
+
+        function renderCategories() {
+            const container = document.getElementById('categories-container');
+            container.innerHTML = categories.map(cat => `
+                <button
+                    onclick="setCategory('${cat}')"
+                    class="text-xs uppercase tracking-widest pb-1 border-b transition-all duration-300 ${
+                        activeCategory === cat 
+                        ? 'border-stone-900 text-stone-900 font-semibold' 
+                        : 'border-transparent text-stone-400 hover:text-stone-600'
+                    }"
+                >
+                    ${cat}
+                </button>
+            `).join('');
+        }
+
+        function renderCategorySelect() {
+            const select = document.getElementById('category-select');
+            select.innerHTML = categories
+                .filter(c => c !== 'All')
+                .map(c => `<option value="${c}">${c}</option>`)
+                .join('');
+        }
+
+        function renderGrid() {
+            const container = document.getElementById('grid-container');
+            const emptyState = document.getElementById('empty-state');
+            
+            const filtered = items.filter(item => {
+                const matchesCat = activeCategory === 'All' || item.category === activeCategory;
+                const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                                      item.brand.toLowerCase().includes(searchTerm.toLowerCase());
+                return matchesCat && matchesSearch;
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = '';
+                emptyState.classList.remove('hidden');
+            } else {
+                emptyState.classList.add('hidden');
+                container.innerHTML = filtered.map(item => `
+                    <div class="group cursor-pointer fade-in" onclick="openDetail(${item.id})">
+                        <div class="relative aspect-[3/4] bg-stone-200 mb-6 overflow-hidden">
+                            ${item.image ? `
+                                <img 
+                                    src="${item.image}" 
+                                    alt="${item.name}" 
+                                    class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                                    onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'w-full h-full flex flex-col items-center justify-center text-stone-400\'><i data-lucide=\'shopping-bag\' class=\'w-12 h-12 mb-2 opacity-50\'></i><span class=\'text-[10px] uppercase tracking-widest\'>No Image</span></div>'; lucide.createIcons();"
+                                />
+                            ` : `
+                                <div class="w-full h-full flex flex-col items-center justify-center text-stone-400">
+                                    <i data-lucide="shopping-bag" class="w-12 h-12 mb-2 stroke-1"></i>
+                                    <span class="text-[10px] uppercase tracking-widest">No Image</span>
+                                </div>
+                            `}
+                            
+                            <div class="absolute inset-0 bg-stone-900/0 group-hover:bg-stone-900/10 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100 gap-2">
+                                <button 
+                                    onclick="openEditModal(event, ${item.id})"
+                                    class="bg-white p-3 rounded-full shadow-xl text-stone-900 hover:text-indigo-600 hover:scale-110 transition-all duration-300 transform translate-y-4 group-hover:translate-y-0"
+                                    title="Edit Item"
+                                >
+                                    <i data-lucide="pencil" class="w-4 h-4"></i>
+                                </button>
+                                <button 
+                                    onclick="deleteItem(event, ${item.id})"
+                                    class="bg-white p-3 rounded-full shadow-xl text-stone-900 hover:text-red-600 hover:scale-110 transition-all duration-300 transform translate-y-4 group-hover:translate-y-0"
+                                    title="Remove Item"
+                                >
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="flex flex-col items-center text-center space-y-1">
+                            <p class="text-[10px] font-bold uppercase tracking-widest text-stone-500">${item.brand}</p>
+                            <h3 class="text-sm font-medium text-stone-900">${item.name}</h3>
+                            <p class="text-xs text-stone-500 font-serif italic">$${item.price}</p>
+                        </div>
+                    </div>
+                `).join('');
+            }
+            lucide.createIcons();
+        }
+
+        // --- Detail Modal ---
+        function openDetail(id) {
+            const item = items.find(i => i.id === id);
+            if (!item) return;
+
+            currentDetailId = id;
+            const imgContainer = document.getElementById('detail-image-container');
+            const contentContainer = document.getElementById('detail-content');
+
+            if (item.image) {
+                imgContainer.innerHTML = `<img src="${item.image}" class="w-full h-full object-cover">`;
+            } else {
+                imgContainer.innerHTML = `<div class="w-full h-full flex items-center justify-center text-stone-400"><i data-lucide="shopping-bag" class="w-16 h-16 opacity-20"></i></div>`;
+            }
+
+            contentContainer.innerHTML = `
+                <div class="flex items-center gap-3 mb-2">
+                   <span class="text-[10px] font-bold tracking-widest uppercase bg-stone-100 px-2 py-1">${item.category}</span>
+                   <span class="text-[10px] font-bold tracking-widest uppercase text-stone-400">${item.brand}</span>
+                </div>
+                
+                <h2 class="text-3xl font-serif mb-2">${item.name}</h2>
+                <p class="text-xl font-light text-stone-500 mb-8">$${item.price}</p>
+
+                <div class="space-y-6 border-t border-stone-100 pt-8">
+                  <div class="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span class="block text-[10px] uppercase tracking-wider text-stone-400 mb-1">Color</span>
+                      <span class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full border border-stone-200" style="background-color: ${item.color.toLowerCase()}"></span>
+                        ${item.color}
+                      </span>
+                    </div>
+                    <div>
+                      <span class="block text-[10px] uppercase tracking-wider text-stone-400 mb-1">Size</span>
+                      <span>${item.size}</span>
+                    </div>
+                  </div>
+                </div>
+            `;
+
+            lucide.createIcons();
+            if(document.getElementById('detail-modal').classList.contains('hidden')){
+                toggleModal('detail-modal');
+            }
+        }
+
+        function handleEditFromModal() {
+            if (currentDetailId) {
+                openEditModal(null, currentDetailId);
+            }
+        }
+
+        function handleDeleteFromModal() {
+            if (currentDetailId) {
+                if (confirm("Remove this item from your collection?")) {
+                    items = items.filter(i => i.id !== currentDetailId);
+                    saveItems();
+                    toggleModal('detail-modal');
+                }
+            }
+        }
+
+    </script>
+</body>
+</html>
